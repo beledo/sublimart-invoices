@@ -1,0 +1,300 @@
+/* The header moves as a whole. Its children never compete for sticky offsets. */
+.app-header {
+  position: relative;
+  z-index: 10;
+}
+.app-header .topbar,
+.app-header .workspace-nav,
+.app-header .account-nav {
+  position: static;
+  top: auto;
+}
+.app-header .workspace-nav {
+  display: block;
+  height: auto;
+  min-height: 0;
+  padding: 8px clamp(12px, 3vw, 36px);
+}
+.app-header .nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+}
+.app-header .nav-tab,
+.app-header .nav-tabs .new-document {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 13px;
+  border: 1px solid #dbe3ed;
+  border-radius: 8px;
+  background: #f3f6fa;
+  color: #384e67;
+  font-size: .875rem;
+  line-height: 1.2;
+  text-align: center;
+}
+.app-header .nav-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.app-header .new-document > .nav-label {
+  font-size: inherit;
+  line-height: inherit;
+}
+.app-header .new-document > .new-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+.app-header .nav-tab[aria-current="page"] {
+  color: var(--navy);
+  background: #e8eff8;
+  border-color: #8aa4c4;
+  box-shadow: inset 0 -2px var(--navy);
+  font-weight: 700;
+}
+.app-header .count-badge {
+  min-width: 1.35em;
+  max-width: 100%;
+  padding: 1px 4px;
+  color: #435773;
+  background: #e1e8f1;
+  font-size: .7rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.app-header .nav-tabs .new-document {
+  margin-inline-start: auto;
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+.app-header .nav-tab:focus-visible,
+.app-header .new-document:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.app-header .account-nav {
+  height: auto;
+  min-height: 32px;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  padding: 0 clamp(12px, 3vw, 36px);
+}
+.app-header .account-nav a,
+.app-header .account-nav button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+.workspace, .workspace > *, .archive-page, .archive-heading > *,
+.archive-row > *, .sequence-card, .report-row > *, .client-row > * {
+  min-width: 0;
+}
+.preview-pages svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+@media (min-width: 901px) {
+  .app-header {
+    position: sticky;
+    top: 0;
+  }
+  .preview-panel {
+    top: var(--app-header-height, 182px);
+    max-height: calc(100vh - var(--app-header-height, 182px));
+    max-height: calc(100dvh - var(--app-header-height, 182px));
+  }
+  #form-error {
+    scroll-margin-block-start: calc(var(--app-header-height, 182px) + 12px);
+  }
+}
+
+@media (max-width: 700px) {
+  .app-header .topbar {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .app-header .brand > span {
+    display: block;
+    min-width: 0;
+  }
+  .app-header .top-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    gap: 6px;
+  }
+  body[data-view]:not([data-view="editor"]) .app-header .top-actions {
+    display: none;
+  }
+  .app-header .top-actions .button {
+    min-height: 44px;
+    min-width: 0;
+    justify-content: center;
+    padding: 7px 5px;
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .app-header .nav-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .app-header .nav-tab,
+  .app-header .nav-tabs .new-document {
+    margin: 0;
+    padding: 6px 4px;
+    font-size: .8125rem;
+  }
+  .app-header .account-nav {
+    justify-content: space-between;
+    gap: 0 12px;
+  }
+  .app-header .account-nav a,
+  .app-header .account-nav button {
+    min-height: 44px;
+  }
+  #form-error {
+    scroll-margin-block-start: 12px;
+  }
+  .editor, .archive-page {
+    padding-inline: clamp(12px, 4vw, 22px);
+  }
+  .archive-heading {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .archive-controls .archive-filter {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .archive-actions {
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  .archive-document, .archive-client, .sequence-card {
+    overflow-wrap: anywhere;
+  }
+  .clients-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .clients-controls label {
+    min-width: 0;
+    max-width: none;
+  }
+  .client-row-actions, .client-dialog .dialog-actions, .pdf-ready-actions {
+    flex-wrap: wrap;
+  }
+  .client-row-actions .button, .client-dialog .dialog-actions .button {
+    min-width: 0;
+    white-space: normal;
+    text-align: center;
+    justify-content: center;
+  }
+  .report-period {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    width: 100%;
+    gap: 8px;
+  }
+  .report-period label, .report-period label:first-child {
+    min-width: 0;
+    max-width: none;
+  }
+  .report-period #report-refresh {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+  .report-downloads {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 138px), 1fr));
+    width: 100%;
+  }
+  .report-downloads .button {
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+  }
+  .report-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  .report-row .report-client {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .report-row .report-amount {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+  .report-row > .button {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: start;
+  }
+  .editor input:not([type="radio"]):not([type="checkbox"]),
+  .editor textarea, .editor select,
+  .client-dialog input, .clients-controls input,
+  .report-period input, .report-period select {
+    min-width: 0;
+    max-width: 100%;
+    font-size: 16px;
+  }
+  .pdf-ready {
+    inset-inline: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    width: auto;
+    max-height: calc(100dvh - 32px);
+    overflow: auto;
+  }
+  .pdf-ready-actions .button {
+    flex: 1 1 110px;
+    min-width: 0;
+    min-height: 44px;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+  }
+}
+@media (max-width: 420px) {
+  .editor .grid-two, .sequence-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .item-card .item-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .item-card .item-grid > :last-child {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .item-card .item-tools {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 300px) {
+  .app-header .nav-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .report-summary, .report-period {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

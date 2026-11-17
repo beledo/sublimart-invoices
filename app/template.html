@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="brand-api" content="{{BASE}}api.php"><meta name="brand-id" content="{{BRAND_ID}}"><meta name="brand-logo" content="{{BRAND_LOGO}}"><meta name="app-csrf" content="{{CSRF}}">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Presupuestos, facturas y clientes de {{BRAND_NAME}}.">
+  <title>Documentos · {{BRAND_NAME}}</title>
+  <link rel="icon" href="{{BRAND_LOGO}}">
+  <link rel="stylesheet" href="assets/styles.css">
+  <link rel="stylesheet" href="assets/access.css">
+  <link rel="stylesheet" href="assets/responsive.css"><link rel="stylesheet" href="assets/brands.css">
+  <script src="assets/pdf-lib.min.js" defer></script>
+  <script src="assets/fontkit.min.js" defer></script>
+  <script src="assets/document.js" defer></script>
+  <script src="assets/app.js?v=3" defer></script>
+</head>
+<body class="brand-{{BRAND_ID}}">
+  <div class="app-header">
+    <header class="topbar">
+      <div class="brand-area"><a class="brand" href="?brand={{BRAND_ID}}"><img src="{{BRAND_LOGO}}" alt="Logo de {{BRAND_NAME}}"><span>{{BRAND_NAME}}<small>Presupuestos y facturas</small></span></a><button type="button" class="brand-switch" id="switch-brand" aria-haspopup="dialog">Cambiar marca <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8h16m-4-4 4 4-4 4M20 16H4m4-4-4 4 4 4"/></svg></span></button></div>
+      <div class="top-actions"><button type="button" class="button secondary" id="preview-toggle">Vista previa</button><button type="button" class="button secondary" id="download-top" aria-label="Descargar PDF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5"/></svg><span class="desktop-label">Descargar </span>PDF</button><button type="button" class="button primary" id="save-top"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h13l3 3v15H3V3zM7 3v6h10V3M7 21v-8h10v8"/></svg><span id="save-top-label">Guardar</span></button></div>
+    </header>
+    <nav class="workspace-nav" aria-label="Secciones">
+      <div class="nav-tabs">
+        <button type="button" class="nav-tab active" data-view="editor" aria-controls="document-page" aria-current="page">
+          <span class="nav-label">Documento</span>
+        </button>
+        <button type="button" class="nav-tab" data-view="history" aria-controls="archive-page">
+          <span class="nav-label">Historial</span> <span id="history-count" class="count-badge">0</span>
+        </button>
+        <button type="button" class="nav-tab" data-view="clients" aria-controls="clients-page">
+          <span class="nav-label">Clientes</span>
+        </button>
+        <button type="button" class="nav-tab" data-view="reports" aria-controls="reports-page">
+          <span class="nav-label">Trimestres</span>
+        </button>
+        <button type="button" class="nav-tab" data-view="trash" aria-controls="archive-page">
+          <span class="nav-label">Papelera</span> <span id="trash-count" class="count-badge">0</span>
+        </button>
+        <button type="button" class="new-document" id="new-document">
+          <span class="new-icon" aria-hidden="true">+</span> <span class="nav-label">Nuevo</span>
+        </button>
+      </div>
+    </nav>
+    <div class="account-nav"><a href="cuenta.php">Cambiar contraseña</a><form action="salir.php" method="post"><input type="hidden" name="csrf" value="{{CSRF}}"><button type="submit">Cerrar sesión</button></form></div>
+  </div>
+  <div class="connection-error" id="connection-error" role="alert" hidden><span id="connection-message"></span><button type="button" id="retry-connection">Volver a intentar</button></div>
+  <main class="workspace" id="document-page">
+    <section class="editor" aria-label="Editar documento">
+      <div class="editor-heading"><div class="eyebrow">NUEVO DOCUMENTO</div><h1>Tu próximo presupuesto.</h1><p>Creá, guardá y compartí con el sello de {{BRAND_NAME}}.</p></div>
+      <form id="document-form" novalidate>
+        <div class="editing-status" id="editing-status" hidden><span id="editing-status-text"></span><div class="document-tools"><button type="button" id="duplicate-document">Duplicar</button><button type="button" id="convert-document">Convertir en factura</button><button type="button" id="leave-edit">Crear otro</button></div></div>
+        <p class="source-notice" id="document-source" hidden></p><fieldset class="type-switch"><legend class="sr-only">Tipo de documento</legend><label><input type="radio" name="documentType" value="quote" checked><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7m-7 4h5"/></svg>Presupuesto</span></label><label><input type="radio" name="documentType" value="invoice"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6m-6 4h4"/></svg>Factura</span></label></fieldset>
+        <section class="form-section"><div class="section-title"><span class="step">01</span><h2>Documento</h2></div><div class="grid-two"><label>Número<input id="number" name="number" maxlength="40" placeholder="Cargando sugerencia…" required autocomplete="off"></label><label>Fecha de emisión<input id="date" name="date" type="date" required></label></div><div class="number-guidance"><span id="number-guidance">Consultando el último número guardado…</span><button type="button" id="use-suggestion" hidden>Usar sugerido</button></div><div class="grid-two tax-row"><label>IVA del documento<select id="tax" name="tax"><option value="21">21 %</option><option value="10">10 %</option><option value="4">4 %</option><option value="0">0 % · sin IVA</option></select></label><label>Unidad de las partidas<select id="unit" name="unit"><option value="Cantidad">Cantidad</option><option value="Metros²">Metros²</option><option value="Horas">Horas</option><option value="Unidades">Unidades</option></select></label></div><p class="field-hint">Los precios se introducen sin IVA.</p></section>
+        <section class="form-section"><div class="section-title"><span class="step">02</span><h2>Cliente</h2><span class="optional" id="client-optional">Opcional en presupuesto</span></div><div class="client-search-box"><label>Buscar cliente de {{BRAND_NAME}}<input type="search" id="client-search" maxlength="150" autocomplete="off" placeholder="Escribí su DNI o nombre"></label><ul id="client-search-results" class="client-search-results" aria-label="Clientes encontrados" hidden></ul></div><div class="grid-two"><label>Nombre o razón social<input id="client-name" name="clientName" maxlength="150" placeholder="Nombre del cliente" autocomplete="name"></label><label>DNI / NIF / CIF / NIE<input id="client-nif" name="clientNif" maxlength="30" placeholder="Escribí el DNI, NIF, CIF o NIE" autocomplete="off"></label></div><div class="client-lookup-actions"><button type="button" class="button secondary" id="lookup-client">Buscar cliente</button><p class="client-lookup-status" id="client-lookup-status" role="status">Buscá por DNI o nombre, o completá los datos de un cliente nuevo.</p></div><label>Domicilio<input id="client-address" name="clientAddress" maxlength="220" placeholder="Calle, número, piso…" autocomplete="street-address"></label><div class="grid-two"><label>Código postal<input id="client-postcode" name="clientPostcode" maxlength="20" placeholder="07000" autocomplete="postal-code"></label><label>Localidad<input id="client-city" name="clientCity" maxlength="100" placeholder="Palma" autocomplete="address-level2"></label></div><div class="grid-two client-contact"><label>Correo electrónico<input id="client-email" name="clientEmail" type="email" maxlength="100" autocomplete="email" placeholder="cliente@correo.com"></label><label>Teléfono<input id="client-phone" name="clientPhone" type="tel" maxlength="50" autocomplete="tel" placeholder="Teléfono del cliente"></label></div><button type="button" class="button secondary" id="save-client-from-document">Guardar cliente</button></section>
+        <section class="form-section items-section"><div class="section-title"><span class="step">03</span><h2>Productos y servicios</h2></div><p class="item-order-hint">Usá las flechas o elegí la posición para ordenar las partidas.</p><p id="item-order-status" class="sr-only" role="status"></p><div id="items" class="items-list"></div><button type="button" id="add-item" class="add-item"><span aria-hidden="true">+</span> Añadir producto</button><div class="editor-totals" aria-live="polite"><div><span>Base imponible</span><strong id="subtotal">0,00 €</strong></div><div><span id="vat-label">IVA (21 %)</span><strong id="vat">0,00 €</strong></div><div class="grand-total"><span>Total <small>IVA incluido</small></span><strong id="total">0,00 €</strong></div></div></section>
+        <section class="form-section"><div class="section-title"><span class="step">04</span><h2>Pago y condiciones</h2></div><label>Forma de pago<input id="payment-method" name="paymentMethod" maxlength="200" value="" placeholder="Transferencia, efectivo…"></label><label>Condiciones de pago<textarea id="payment-terms" name="paymentTerms" rows="2" maxlength="2000"></textarea></label><div id="quote-settings"><label>Validez del presupuesto<select id="validity" name="validity"><option value="15">15 días</option><option value="30" selected>30 días</option><option value="60">60 días</option><option value="90">90 días</option><option value="">Sin indicar</option></select></label></div><label>Observaciones<textarea id="notes" name="notes" rows="3" maxlength="4000" placeholder="Información adicional para el cliente"></textarea></label><label id="clause-label">Condiciones adicionales (opcional)<textarea id="clause" name="clause" rows="2" maxlength="6000"></textarea></label></section>
+        <details class="company-settings"><summary><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V7l8-4 8 4v14M8 9h1m6 0h1M8 13h1m6 0h1M9 21v-4h6v4"/></svg>Datos de {{BRAND_NAME}}</span><span class="summary-note">Editar</span></summary><div class="company-fields"><div class="grid-two"><label>Razón social<input id="company-name" name="companyName" value="{{BRAND_NAME}}" maxlength="150" required></label><label>NIF<input id="company-nif" name="companyNif" value="" maxlength="30"></label></div><label>Domicilio<input id="company-address" name="companyAddress" value="" maxlength="200"></label><div class="grid-two"><label>Código postal<input id="company-postcode" name="companyPostcode" value="" maxlength="20"></label><label>Localidad<input id="company-city" name="companyCity" value="" maxlength="100"></label></div><div class="grid-two"><label>Correo electrónico<input id="company-email" name="companyEmail" type="email" value="" maxlength="100"></label><label>Teléfono<input id="company-phone" name="companyPhone" value="" maxlength="50"></label></div><label>IBAN <span class="label-note">para presupuestos y facturas</span><input id="company-iban" name="companyIban" maxlength="40" value="" placeholder="ES00 0000 0000 0000 0000 0000"></label><button type="button" class="button secondary company-save" id="save-company">Guardar datos de empresa</button><p class="field-hint">Los documentos anteriores conservan sus datos y su PDF.</p></div></details>
+        <p class="error-message" id="form-error" role="alert" tabindex="-1" hidden></p><div class="form-bottom" id="form-actions"><button type="submit" class="button primary download-bottom" id="save-bottom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h13l3 3v15H3V3zM7 3v6h10V3M7 21v-8h10v8"/></svg><span id="save-bottom-label">Guardar documento</span></button><button type="button" class="button secondary download-secondary" id="download-bottom">Descargar PDF</button><p class="session-note">Guardá el documento para conservarlo en el historial y abrirlo desde cualquier dispositivo.</p></div>
+      </form>
+    </section>
+    <aside class="preview-panel" id="preview-panel" aria-label="Vista previa del documento"><div class="preview-toolbar"><span><span class="preview-mark" aria-hidden="true"></span>VISTA PREVIA</span><span id="page-count">A4 · 1 página</span></div><div class="preview-pages" id="preview-pages" aria-live="off"><div class="preview-loading">Preparando el documento…</div></div><div class="preview-footnote"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7m-7 4h5"/></svg>Este es el diseño del PDF que vas a descargar.</div></aside>
+  </main>
+  <section class="archive-page" id="archive-page" aria-labelledby="archive-title" hidden><div class="archive-heading"><div><div class="eyebrow" id="archive-eyebrow">DOCUMENTOS GUARDADOS</div><h1 id="archive-title">Historial</h1><p id="archive-description">Tus presupuestos y facturas, siempre disponibles.</p></div><span class="archive-total" id="archive-total"></span></div><div class="sequence-cards" id="sequence-cards"></div><div class="archive-controls"><div class="archive-filter" role="group" aria-label="Filtrar documentos"><button type="button" class="filter-button active" data-filter="">Todos</button><button type="button" class="filter-button" data-filter="quote">Presupuestos</button><button type="button" class="filter-button" data-filter="invoice">Facturas</button></div><button type="button" class="button secondary refresh-archive" id="refresh-archive">Actualizar</button></div><div class="archive-error" id="archive-error" role="alert" hidden></div><div class="archive-list" id="archive-list" aria-live="polite"></div><button type="button" class="button secondary load-more" id="load-more" hidden>Cargar más documentos</button></section>
+
+  <section class="archive-page" id="clients-page" aria-labelledby="clients-title" hidden>
+    <div class="archive-heading"><div><div class="eyebrow">AGENDA DE CLIENTES</div><h1 id="clients-title">Clientes</h1><p>La agenda de {{BRAND_NAME}}. Buscá por DNI o nombre.</p></div><button type="button" class="button primary" id="new-client">Nuevo cliente</button></div>
+    <div class="clients-controls"><label>Buscar por nombre o identificación<input type="search" id="clients-search" maxlength="150" placeholder="Nombre, DNI, NIF, CIF o NIE"></label><button type="button" class="button secondary" id="clients-search-button">Buscar</button><span id="clients-total" class="archive-total"></span></div>
+    <p class="archive-error" id="clients-error" role="alert" hidden></p><div class="archive-list" id="clients-list" aria-live="polite"></div><button type="button" class="button secondary load-more" id="clients-more" hidden>Cargar más clientes</button>
+  </section>
+  <section class="archive-page" id="reports-page" aria-labelledby="reports-title" hidden>
+    <div class="archive-heading"><div><div class="eyebrow">DOCUMENTACIÓN PARA TU GESTOR</div><h1 id="reports-title">Trimestres</h1><p>Consultá y descargá las facturas emitidas de cada trimestre.</p></div></div>
+    <div class="report-controls"><div class="report-period"><label>Año<input type="number" id="report-year" min="1900" max="2199" step="1" required></label><label>Trimestre<select id="report-quarter"><option value="1">1.º · enero a marzo</option><option value="2">2.º · abril a junio</option><option value="3">3.º · julio a septiembre</option><option value="4">4.º · octubre a diciembre</option></select></label><button type="button" class="button secondary" id="report-refresh">Consultar</button></div><div class="report-downloads"><a class="button primary" id="report-zip" aria-disabled="true">Descargar trimestre (ZIP)</a><a class="button secondary" id="report-csv" aria-disabled="true">Resumen CSV</a></div></div>
+    <p class="report-scope">Por fecha de emisión. Incluye facturas guardadas; excluye presupuestos y documentos en la papelera. El ZIP contiene todos los PDF del trimestre y el resumen CSV.</p>
+    <p class="archive-error" id="reports-error" role="alert" hidden></p><div class="report-summary" id="report-summary" aria-live="polite"></div><div id="report-rates"></div><p class="report-caption" id="report-caption"></p><div class="archive-list" id="report-list"></div><button type="button" class="button secondary load-more" id="reports-more" hidden>Cargar más facturas</button>
+  </section>
+  <dialog id="client-dialog" class="client-dialog" aria-labelledby="client-dialog-title">
+    <form id="client-form"><div class="dialog-heading"><h2 id="client-dialog-title">Guardar cliente</h2><button type="button" class="dialog-close" id="client-dialog-close" aria-label="Cerrar">×</button></div>
+    <label>Nombre o razón social<input id="cd-name" maxlength="150" required autocomplete="off"></label><label>DNI / NIF / CIF / NIE<input id="cd-nif" maxlength="30" required autocomplete="off"></label><label>Domicilio<input id="cd-address" maxlength="220"></label><div class="grid-two"><label>Código postal<input id="cd-postcode" maxlength="20"></label><label>Localidad<input id="cd-city" maxlength="100"></label></div><div class="grid-two"><label>Correo electrónico<input id="cd-email" maxlength="100" type="email"></label><label>Teléfono<input id="cd-phone" maxlength="50" type="tel"></label></div>
+    <p class="field-hint">Los documentos ya guardados conservan sus datos originales.</p><p class="archive-error" id="client-form-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="button secondary" id="client-dialog-cancel">Cancelar</button><button type="submit" class="button primary" id="client-submit">Guardar cliente</button></div></form>
+  </dialog>
+  <dialog id="brand-dialog" class="client-dialog brand-dialog" aria-labelledby="brand-dialog-title"><div class="dialog-heading"><div><span class="eyebrow">TUS TRES MARCAS</span><h2 id="brand-dialog-title">Cambiar de espacio</h2></div><button type="button" class="dialog-close" id="brand-dialog-close" aria-label="Cerrar">×</button></div><p class="switch-intro">Tu borrador se conserva al cambiar de marca en esta pestaña.</p>{{BRAND_LINKS}}<a class="all-brands" href="./">Ver todas mis marcas</a></dialog>
+  <aside class="pdf-ready" id="pdf-ready" aria-labelledby="pdf-ready-title" hidden>
+    <div class="pdf-ready-head"><p id="pdf-ready-title" role="status">PDF</p><button type="button" id="pdf-dismiss" aria-label="Cerrar opciones del PDF">×</button></div>
+    <p>Si no aparece en tus descargas, abrí el PDF en otra pestaña y guardalo desde el visor.</p>
+    <div class="pdf-ready-actions" id="pdf-saved-actions" hidden><a class="button primary" id="pdf-download-link">Guardar PDF</a><a class="button secondary" id="pdf-open-link" target="_blank" rel="noopener">Abrir PDF</a></div>
+    <form class="pdf-ready-actions" id="pdf-draft-form" method="post" enctype="multipart/form-data" rel="noopener" hidden>
+      <input type="hidden" name="document" id="pdf-draft-data"><input type="hidden" name="csrf" id="pdf-draft-csrf">
+      <button class="button primary" type="submit" id="pdf-draft-download">Guardar PDF</button><button class="button secondary" type="submit" formtarget="_blank" id="pdf-draft-open">Abrir PDF</button>
+    </form>
+  </aside>
+  <div class="toast" id="toast" role="status" hidden></div>
+</body>
+</html>

@@ -1,0 +1,8 @@
+/app/data/*
+!/app/data/.htaccess
+.env
+.env.*
+*.log
+*.sql.gz
+*.zip
+.DS_Store
