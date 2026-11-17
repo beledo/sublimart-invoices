@@ -2,10 +2,10 @@
   'use strict';
   const engine = window.BrandDocument, $ = id => document.getElementById(id);
   const form = $('document-form');
+  const previewFootnote = document.querySelector('.preview-footnote');
   const assetBase=new URL('.',document.currentScript.src);
   const phpApi=document.querySelector('meta[name="brand-api"]')?.content;
   const brandId=document.querySelector('meta[name="brand-id"]').content;
-  const brandLogo=document.querySelector('meta[name="brand-logo"]').content;
   const sessionKey=document.querySelector('meta[name="app-csrf"]').content;
   const draftKey='sublimart:draft:'+sessionKey+':'+brandId;
   function apiUrl(path) {
@@ -117,6 +117,7 @@
       }
     });
     const data = readData();
+    if (previewFootnote) previewFootnote.hidden = true;
     try {
       const amounts = engine.calculate(safeRows, data.tax);
       $('subtotal').textContent = invalid ? '—' : engine.euro(amounts.base);
@@ -127,6 +128,7 @@
         const doc = engine.layout(data);
         $('preview-pages').innerHTML = engine.svgPages(doc);
         $('page-count').textContent = 'A4 · ' + doc.pages.length + (doc.pages.length === 1 ? ' página' : ' páginas');
+        if (previewFootnote) previewFootnote.hidden = false;
       } else if (ready && invalid) $('preview-pages').innerHTML = '<div class="preview-loading">Revisá las cantidades y precios para actualizar la vista previa.</div>';
     } catch (error) {
       $('subtotal').textContent = '—'; $('vat').textContent = '—'; $('total').textContent = '—';
@@ -673,7 +675,10 @@
   void loadBootstrap(true);
   const generatorReady=(async () => {
     try {
-      const [image,font]=await Promise.all([fetch(new URL(brandLogo,location.href)),fetch(new URL('document-font.ttf',assetBase))]);
+      const [image,font]=await Promise.all([
+        fetch(apiUrl('/api/pdf-logo'), {cache:'no-store', credentials:'same-origin'}),
+        fetch(new URL('document-font.ttf',assetBase)),
+      ]);
       if (!image.ok) throw new Error('No se pudo cargar el logo.');
       const fallback=font.ok&&window.fontkit?{kit:window.fontkit,bytes:new Uint8Array(await font.arrayBuffer())}:undefined;
       await engine.init(window.PDFLib,new Uint8Array(await image.arrayBuffer()),fallback);

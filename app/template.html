@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="brand-api" content="{{BASE}}api.php"><meta name="brand-id" content="{{BRAND_ID}}"><meta name="brand-logo" content="{{BRAND_LOGO}}"><meta name="app-csrf" content="{{CSRF}}">
+  <meta name="brand-api" content="{{BASE}}api.php"><meta name="brand-id" content="{{BRAND_ID}}"><meta name="app-csrf" content="{{CSRF}}">
   <meta name="robots" content="noindex,nofollow">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Presupuestos, facturas y clientes de {{BRAND_NAME}}.">
@@ -14,7 +14,7 @@
   <script src="assets/pdf-lib.min.js" defer></script>
   <script src="assets/fontkit.min.js" defer></script>
   <script src="assets/document.js" defer></script>
-  <script src="assets/app.js?v=3" defer></script>
+  <script src="assets/app.js?v=4" defer></script>
 </head>
 <body class="brand-{{BRAND_ID}}">
   <div class="app-header">
@@ -61,7 +61,7 @@
         <p class="error-message" id="form-error" role="alert" tabindex="-1" hidden></p><div class="form-bottom" id="form-actions"><button type="submit" class="button primary download-bottom" id="save-bottom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h13l3 3v15H3V3zM7 3v6h10V3M7 21v-8h10v8"/></svg><span id="save-bottom-label">Guardar documento</span></button><button type="button" class="button secondary download-secondary" id="download-bottom">Descargar PDF</button><p class="session-note">Guardá el documento para conservarlo en el historial y abrirlo desde cualquier dispositivo.</p></div>
       </form>
     </section>
-    <aside class="preview-panel" id="preview-panel" aria-label="Vista previa del documento"><div class="preview-toolbar"><span><span class="preview-mark" aria-hidden="true"></span>VISTA PREVIA</span><span id="page-count">A4 · 1 página</span></div><div class="preview-pages" id="preview-pages" aria-live="off"><div class="preview-loading">Preparando el documento…</div></div><div class="preview-footnote"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7m-7 4h5"/></svg>Este es el diseño del PDF que vas a descargar.</div></aside>
+    <aside class="preview-panel" id="preview-panel" aria-label="Vista previa del documento"><div class="preview-toolbar"><span><span class="preview-mark" aria-hidden="true"></span>VISTA PREVIA</span><span id="page-count">A4 · 1 página</span></div><div class="preview-pages" id="preview-pages" aria-live="off"><div class="preview-loading">Preparando el documento…</div></div><div class="preview-footnote" id="preview-footnote" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7m-7 4h5"/></svg>Este es el diseño del PDF que vas a descargar.</div></aside>
   </main>
   <section class="archive-page" id="archive-page" aria-labelledby="archive-title" hidden><div class="archive-heading"><div><div class="eyebrow" id="archive-eyebrow">DOCUMENTOS GUARDADOS</div><h1 id="archive-title">Historial</h1><p id="archive-description">Tus presupuestos y facturas, siempre disponibles.</p></div><span class="archive-total" id="archive-total"></span></div><div class="sequence-cards" id="sequence-cards"></div><div class="archive-controls"><div class="archive-filter" role="group" aria-label="Filtrar documentos"><button type="button" class="filter-button active" data-filter="">Todos</button><button type="button" class="filter-button" data-filter="quote">Presupuestos</button><button type="button" class="filter-button" data-filter="invoice">Facturas</button></div><button type="button" class="button secondary refresh-archive" id="refresh-archive">Actualizar</button></div><div class="archive-error" id="archive-error" role="alert" hidden></div><div class="archive-list" id="archive-list" aria-live="polite"></div><button type="button" class="button secondary load-more" id="load-more" hidden>Cargar más documentos</button></section>
 

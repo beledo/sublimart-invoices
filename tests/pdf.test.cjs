@@ -11,6 +11,7 @@ require(path.join(root,'assets/document.js'));
   assert.equal(doc.amounts.base,17940);assert.equal(doc.amounts.total,21707);
   const parsed=await PDFLib.PDFDocument.load(bytes);assert.equal(parsed.getPageCount(),1);assert.ok(parsed.getTitle().includes(name));
   assert.ok(doc.pages[0].some(op=>op.kind==='image'));
+  assert.match(BrandDocument.svgPages(doc), /<image href="data:image\/png;base64,iVBOR/);
   if(process.env.PDF_TEST_OUTPUT)fs.writeFileSync(path.join(process.env.PDF_TEST_OUTPUT,brand+'.pdf'),bytes);
   for(const rate of [0,4,10,21])assert.equal(BrandDocument.calculate([{quantity:'1',price:'100'}],rate).total,10000+rate*100);
   const long={...data,items:Array.from({length:100},(_,i)=>({description:'Producto '+i+' · '+('Descripción muy extensa con palabras '.repeat(12)),quantity:'1',price:'2.50'})),notes:'Observación final '.repeat(300)};

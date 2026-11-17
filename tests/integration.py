@@ -8,9 +8,10 @@ from pathlib import Path
 base=os.environ['SM_TEST_BASE_URL'].rstrip('/')+'/'
 config=json.loads(Path(os.environ['SM_TEST_CONFIG']).read_text())
 cookies={}
-def request(path='',data=None,method='GET',csrf=None,form=False,expected=200,location=None):
+def request(path='',data=None,method='GET',csrf=None,form=False,expected=200,location=None,accept=None):
  headers={}
  if cookies:headers['Cookie']='; '.join(f'{key}={value}' for key,value in cookies.items())
+ if accept:headers['Accept']=accept
  if csrf:headers['X-CSRF-Token']=csrf
  if data is not None:
   data=urllib.parse.urlencode(data).encode() if form else json.dumps(data).encode()
@@ -29,6 +30,9 @@ def request(path='',data=None,method='GET',csrf=None,form=False,expected=200,loc
  assert code==expected,(path,code,body[:500])
  if location is not None:assert response.headers['Location']==location
  if 'application/pdf' in response.headers.get('Content-Type',''):return body
+ if response.headers.get('Content-Type')=='application/octet-stream':
+  assert 'no-transform' in response.headers.get('Cache-Control','')
+  return body
  try:return json.loads(body)
  except (json.JSONDecodeError,UnicodeDecodeError):return body.decode(errors='replace')
 def api(brand,route='',**kw):
@@ -57,6 +61,8 @@ for brand,name in zip(brands,brand_names):
  request('?brand='+brand,expected=302,location=login_url)
  assert api(brand,'bootstrap',expected=401)['login']==login_url
  login(brand,config['password'])
+ original_logo=Path(__file__).resolve().parents[1]/'assets'/'logos'/(brand+'.png')
+ assert api(brand,'pdf-logo',accept='image/webp,image/*,*/*;q=0.8')==original_logo.read_bytes()
  boot=api(brand,'bootstrap');assert boot['company']['name']==name;tokens[brand]=boot['csrfToken']
  assert 'Cambiar contraseña' in request('?brand='+brand)
  client={'name':'Cliente '+name,'nif':'30.123.456','address':'','postcode':'','city':'','email':'','phone':''}

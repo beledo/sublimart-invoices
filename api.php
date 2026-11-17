@@ -91,9 +91,20 @@ try {
     $brand = hh_brand();
     $brandId = $brand['id'];
     $config = hh_require_auth($brandId, true);
-    hh_validate_databases($config['databases']??[]);
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     $route=trim(is_string($_GET['route']??null)?$_GET['route']:'','/');
+    if ($route === 'pdf-logo' && $method === 'GET') {
+        session_write_close();
+        $logo = fopen(__DIR__ . '/' . $brand['logo'], 'rb');
+        if (!$logo) throw new HttpError(503, 'No se pudo leer el logo de esta marca.');
+        // The PDF needs the original file, even if the CDN serves WebP for the logo in the header.
+        header('Content-Type: application/octet-stream');
+        header('Cache-Control: private, no-store, no-transform');
+        fpassthru($logo);
+        fclose($logo);
+        exit;
+    }
+    hh_validate_databases($config['databases']??[]);
     if($route==='draft.pdf'&&$method==='POST')hh_draft_pdf($brandId);
     if (!in_array($method,['GET','HEAD'],true)) hh_check_csrf(null, $brandId);
     $csrf = hh_csrf($brandId);
