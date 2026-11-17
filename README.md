@@ -1,6 +1,6 @@
 # Sublimart · Argento 100x100 · El Merchandising de tu club
 
-Aplicación PHP/MySQL basada en Helher House. Un acceso con contraseña y selector de tres marcas. Cada marca tiene su propia base MySQL, clientes, empresa, numeración, historial, papelera y carpeta privada de PDF. La selección viaja en cada petición: dos pestañas abiertas en distintas marcas no se cambian la cuenta entre sí.
+Aplicación PHP/MySQL basada en Helher House. Elegí una marca en el selector y entrá con su contraseña. Cada marca tiene su propia sesión, base MySQL, clientes, empresa, numeración, historial, papelera y carpeta privada de PDF. Podés usar varias marcas en pestañas distintas.
 
 Los tres nombres y los logos adjuntos están precargados. Los datos fiscales, de contacto y bancarios quedan vacíos para completarlos con los datos reales de cada empresa. La instalación no incluye clientes de ejemplo.
 
@@ -28,7 +28,7 @@ Código de `beledo/sublimart-invoices`. Desplegá **el contenido de este reposit
    ```
 
    Muestra una clave de instalación de un solo uso y crea el almacenamiento privado fuera de la raíz web.
-5. Abrí `https://tu-dominio/instalar.php`, ingresá la clave y los datos MySQL de las tres marcas. Elegí una contraseña de acceso de al menos 16 caracteres. El instalador comprueba que las tres bases sean diferentes y crea las tablas y los perfiles.
+5. Abrí `https://tu-dominio/instalar.php`, ingresá la clave y los datos MySQL de las tres marcas. Elegí una contraseña de acceso de al menos 8 caracteres. El instalador la asigna como contraseña inicial de cada marca, comprueba que las tres bases sean diferentes y crea las tablas y los perfiles.
 6. Entrá a cada marca y completá **Datos de [marca]** con los datos fiscales, de contacto y bancarios reales. Podés crear presupuestos con el nombre precargado; para emitir facturas se pide completar la ficha fiscal.
 
 La clave temporal se elimina al terminar y el instalador se bloquea cuando ya existe una configuración. Si falla una conexión, no se crean tablas hasta haber verificado las tres. Si se interrumpe después de crear tablas, se puede reintentar con las mismas bases de esa marca.
@@ -38,6 +38,8 @@ La clave temporal se elimina al terminar y el instalador se bloquea cuando ya ex
 Si se sirve desde una subcarpeta de otro sitio, fijá `SUBLIMART_DATA_DIR` al **mismo directorio privado absoluto fuera de toda la raíz web** en PHP y SSH. No compartas ese directorio con Helher ni con otra instalación. No subas credenciales, sesiones, PDF privados ni copias de bases a GitHub.
 
 ## Datos y actualizaciones
+
+Al actualizar una instalación anterior, elegí la marca y volvé a entrar con tu contraseña anterior. Desde **Cambiar contraseña** podés cambiarla para cada marca. Si cambiás una contraseña, las sesiones de esa marca vuelven a pedir acceso.
 
 Los datos no se guardan en el repositorio. Respaldá las tres bases y el directorio privado, que contiene la configuración, las sesiones y `brands/[marca]/pdf/`. Actualizar el código no reemplaza esas bases. Los documentos ya guardados conservan su ficha de empresa y su PDF.
 

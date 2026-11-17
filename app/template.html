@@ -44,7 +44,7 @@
         </button>
       </div>
     </nav>
-    <div class="account-nav"><a href="cuenta.php">Cambiar contraseña</a><form action="salir.php" method="post"><input type="hidden" name="csrf" value="{{CSRF}}"><button type="submit">Cerrar sesión</button></form></div>
+    <div class="account-nav"><a href="cuenta.php?brand={{BRAND_ID}}">Cambiar contraseña</a><form action="salir.php?brand={{BRAND_ID}}" method="post"><input type="hidden" name="csrf" value="{{CSRF}}"><button type="submit">Cerrar sesión</button></form></div>
   </div>
   <div class="connection-error" id="connection-error" role="alert" hidden><span id="connection-message"></span><button type="button" id="retry-connection">Volver a intentar</button></div>
   <main class="workspace" id="document-page">

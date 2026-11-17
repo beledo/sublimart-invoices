@@ -23,10 +23,10 @@ function hh_pdf_headers(string $type,string $number,int $size): void {
     header('Content-Length: '.$size);
     header('Cross-Origin-Resource-Policy: same-origin');
 }
-function hh_draft_pdf(): never {
+function hh_draft_pdf(string $brandId): never {
     if (!str_starts_with(strtolower($_SERVER['CONTENT_TYPE']??''),'multipart/form-data;')) throw new HttpError(415,'No se pudo leer el formulario del PDF.');
     if((int)($_SERVER['CONTENT_LENGTH']??0)>18000000)throw new HttpError(413,'El documento es demasiado grande.');
-    hh_check_csrf(hh_post('csrf'));
+    hh_check_csrf(hh_post('csrf'), $brandId);
     session_write_close();
     try {$payload=json_decode(hh_post('document'),true,16,JSON_THROW_ON_ERROR);}
     catch(JsonException $e){throw new HttpError(400,'No se pudo leer el formulario del PDF.');}
@@ -88,14 +88,15 @@ function hh_store(PDO $db, ?string $id): never {
     hh_json(hh_saved($db,hh_find($db,$id,$now)),$updating?200:201);
 }
 try {
-    $config = hh_require_auth(true);
     $brand = hh_brand();
+    $brandId = $brand['id'];
+    $config = hh_require_auth($brandId, true);
     hh_validate_databases($config['databases']??[]);
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     $route=trim(is_string($_GET['route']??null)?$_GET['route']:'','/');
-    if($route==='draft.pdf'&&$method==='POST')hh_draft_pdf();
-    if (!in_array($method,['GET','HEAD'],true)) hh_check_csrf();
-    $csrf = hh_csrf();
+    if($route==='draft.pdf'&&$method==='POST')hh_draft_pdf($brandId);
+    if (!in_array($method,['GET','HEAD'],true)) hh_check_csrf(null, $brandId);
+    $csrf = hh_csrf($brandId);
     session_write_close();
     $db = hh_connect($config); $now = hh_now();
     hh_migrate($db);

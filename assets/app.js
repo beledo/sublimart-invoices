@@ -292,7 +292,7 @@
     const response=await fetch(apiUrl(path),{credentials:'same-origin',...options,headers:{...(options.body?{'Content-Type':'application/json'}:{}),...(csrfToken?{'X-CSRF-Token':csrfToken}:{}),...(options.headers||{})}});
     let body;
     try {body=await response.json();} catch(_){throw new Error('No se pudo acceder al historial. Recargá la página y volvé a intentarlo.');}
-    if(response.status===401){location.href=body.login||'entrar.php';throw new Error('Tu sesión terminó.');}
+    if(response.status===401){location.href=body.login||'entrar.php?brand='+encodeURIComponent(brandId);throw new Error('Tu sesión terminó.');}
     if(!response.ok) {const error=new Error(body.error||'No se pudo completar la operación.');error.details=body;throw error;}
     return body;
   }

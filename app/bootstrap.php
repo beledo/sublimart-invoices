@@ -31,6 +31,7 @@ catch(RuntimeException $e){
 define('HH_CONFIG',HH_DATA.'/config.php');
 const HH_FILE_PREFIX = "<?php http_response_code(404); exit; ?>\n";
 const HH_DAY = 86400000;
+const HH_PASSWORD_MIN_LENGTH = 8;
 
 final class HttpError extends RuntimeException {
     public int $status;
@@ -46,6 +47,9 @@ function hh_base(): string {
     $base = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/index.php'));
     return ($base === '/' || $base === '.') ? '/' : $base . '/';
 }
+function hh_brand_url(string $brandId, string $page = ''): string {
+    return hh_base() . $page . '?brand=' . rawurlencode($brandId);
+}
 function hh_headers(): void {
     header('Cache-Control: private, no-store, max-age=0');
     header('X-Content-Type-Options: nosniff');
@@ -54,17 +58,28 @@ function hh_headers(): void {
     if(hh_is_https())header('Strict-Transport-Security: max-age=31536000');
     header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
 }
-function hh_session(): void {
-    if (session_status() === PHP_SESSION_ACTIVE) return;
+function hh_session(?string $brandId = null): void {
+    if ($brandId !== null) hh_brand($brandId);
+    $name = $brandId === null ? 'SUBLIMARTINSTALLSESSID' : 'SUBLIMARTSESSID' . strtoupper($brandId);
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        if (session_name() !== $name) throw new LogicException('La sesión corresponde a otro acceso.');
+        return;
+    }
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
     ini_set('session.gc_maxlifetime','28800');
     ini_set('session.gc_probability','1');
     ini_set('session.gc_divisor','100');
-    $directory=HH_DATA.'/sessions';
-    if(is_link($directory)||(!is_dir($directory)&&!@mkdir($directory,0700)&&!is_dir($directory))||(fileperms($directory)&0077)!==0)throw new RuntimeException('No se pudo preparar el almacenamiento privado de sesiones.');
+    $sessionRoot = HH_DATA . '/sessions';
+    $directory = $brandId === null ? $sessionRoot : $sessionRoot . '/' . $brandId;
+    $directories = $brandId === null ? [$sessionRoot] : [$sessionRoot, $directory];
+    foreach ($directories as $path) {
+        if (is_link($path) || (!is_dir($path) && !@mkdir($path, 0700) && !is_dir($path)) || (fileperms($path) & 0077) !== 0) {
+            throw new RuntimeException('No se pudo preparar el almacenamiento privado de sesiones.');
+        }
+    }
     session_save_path($directory);
-    session_name('SUBLIMARTSESSID');
+    session_name($name);
     session_set_cookie_params([
         'lifetime' => 0, 'path' => hh_base(),
         'secure' => hh_is_https(),
@@ -73,27 +88,39 @@ function hh_session(): void {
     if(!session_start())throw new RuntimeException('No se pudo iniciar la sesión.');
     if (empty($_SESSION['csrf'])) $_SESSION['csrf'] = bin2hex(random_bytes(32));
 }
-function hh_csrf(): string { hh_session(); return $_SESSION['csrf']; }
-function hh_check_csrf(?string $token = null): void {
-    hh_session();
+function hh_csrf(?string $brandId = null): string { hh_session($brandId); return $_SESSION['csrf']; }
+function hh_check_csrf(?string $token = null, ?string $brandId = null): void {
+    $expected = hh_csrf($brandId);
     $token ??= $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-    if (!hash_equals($_SESSION['csrf'], $token)) throw new HttpError(403, 'La sesión cambió. Recargá la página y volvé a intentarlo.');
+    if (!hash_equals($expected, $token)) throw new HttpError(403, 'La sesión cambió. Recargá la página y volvé a intentarlo.');
     if (($_SERVER['HTTP_SEC_FETCH_SITE'] ?? '') === 'cross-site') throw new HttpError(403, 'No se permite guardar desde otra página.');
 }
 function hh_post(string $key): string { return is_string($_POST[$key]??null)?$_POST[$key]:''; }
 function hh_new_password(string $password,string $confirm): string {
-    if(strlen($password)>72||str_contains($password,"\0")||preg_match_all('/./us',$password)<16)throw new HttpError(400,'Elegí una contraseña de al menos 16 caracteres.');
+    if (strlen($password) > 72 || str_contains($password, "\0") || preg_match_all('/./us', $password) < HH_PASSWORD_MIN_LENGTH) {
+        throw new HttpError(400, 'Elegí una contraseña de al menos ' . HH_PASSWORD_MIN_LENGTH . ' caracteres y de hasta 72 bytes.');
+    }
     if(!hash_equals($password,$confirm))throw new HttpError(400,'Las contraseñas no coinciden.');
     return defined('PASSWORD_ARGON2ID')?password_hash($password,PASSWORD_ARGON2ID,['memory_cost'=>19456,'time_cost'=>2,'threads'=>1]):password_hash($password,PASSWORD_BCRYPT,['cost'=>12]);
 }
-function hh_sign_in(string $passwordHash): void {
+function hh_sign_in(string $brandId, string $passwordHash): void {
+    hh_session($brandId);
     if(!session_regenerate_id(true))throw new RuntimeException('No se pudo renovar la sesión.');
-    $_SESSION=['auth'=>hash('sha256',$passwordHash),'issued'=>time(),'last_seen'=>time(),'csrf'=>bin2hex(random_bytes(32))];
+    $now = time();
+    $_SESSION = ['brand' => $brandId, 'auth' => hash('sha256', $passwordHash), 'issued' => $now, 'last_seen' => $now, 'csrf' => bin2hex(random_bytes(32))];
 }
 function hh_config(): array {
     if (!is_file(HH_CONFIG)) throw new HttpError(503, 'Primero hay que instalar la aplicación.');
     $config = require HH_CONFIG;
-    if (!is_array($config) || empty($config['password_hash'])) throw new HttpError(503, 'Revisá la configuración de la aplicación.');
+    if (!is_array($config)) throw new HttpError(503, 'Revisá la configuración de la aplicación.');
+    if (!isset($config['password_hashes']) && is_string($config['password_hash'] ?? null)) {
+        $config['password_hashes'] = array_fill_keys(array_keys(hh_brands()), $config['password_hash']);
+    }
+    unset($config['password_hash']);
+    foreach (array_keys(hh_brands()) as $brandId) {
+        $hash = $config['password_hashes'][$brandId] ?? null;
+        if (!is_string($hash) || $hash === '') throw new HttpError(503, 'Revisá la configuración de la aplicación.');
+    }
     return $config;
 }
 function hh_write_config(array $config): void {
@@ -103,24 +130,27 @@ function hh_write_config(array $config): void {
         if (file_put_contents($temp, "<?php\ndeclare(strict_types=1);\nreturn " . var_export($config, true) . ";\n", LOCK_EX) === false) throw new RuntimeException('No se pudo guardar la configuración.');
         chmod($temp, 0600);
         if (!rename($temp, HH_CONFIG)) throw new RuntimeException('No se pudo completar la configuración.');
+        if (function_exists('opcache_invalidate')) opcache_invalidate(HH_CONFIG, true);
     } finally { if (is_file($temp)) unlink($temp); }
 }
-function hh_authenticated(array $config): bool {
-    hh_session();
-    return isset($_SESSION['auth'], $_SESSION['last_seen'], $_SESSION['issued'])
-        && hash_equals(hash('sha256', $config['password_hash']), (string) $_SESSION['auth'])
+function hh_authenticated(array $config, string $brandId): bool {
+    hh_session($brandId);
+    return ($_SESSION['brand'] ?? null) === $brandId
+        && isset($_SESSION['auth'], $_SESSION['last_seen'], $_SESSION['issued'])
+        && hash_equals(hash('sha256', $config['password_hashes'][$brandId]), (string) $_SESSION['auth'])
         && time() - (int) $_SESSION['last_seen'] < 8 * 3600
         && time() - (int) $_SESSION['issued'] < 24 * 3600;
 }
-function hh_require_auth(bool $api = false): array {
+function hh_require_auth(string $brandId, bool $api = false): array {
     if (!is_file(HH_CONFIG)) {
         if ($api) throw new HttpError(503, 'Abrí la página de instalación para conectar la base de datos.');
         header('Location: ' . hh_base() . 'instalar.php'); exit;
     }
     $config = hh_config();
-    if (!hh_authenticated($config)) {
-        if ($api) throw new HttpError(401, 'Tu sesión terminó. Entrá de nuevo para continuar.', ['login' => hh_base() . 'entrar.php']);
-        header('Location: ' . hh_base() . 'entrar.php'); exit;
+    if (!hh_authenticated($config, $brandId)) {
+        $login = hh_brand_url($brandId, 'entrar.php');
+        if ($api) throw new HttpError(401, 'Ingresá la contraseña de esta marca para continuar.', ['login' => $login]);
+        header('Location: ' . $login); exit;
     }
     $_SESSION['last_seen'] = time();
     return $config;
@@ -177,8 +207,8 @@ function hh_body(): array {
     if (!is_array($body)) throw new HttpError(400, 'No se pudieron leer los datos.');
     return $body;
 }
-function hh_verify_attempt(callable $verify): bool {
-    $key = hash('sha256', $_SERVER['REMOTE_ADDR'] ?? 'unknown');
+function hh_verify_attempt(callable $verify, string $scope = 'install'): bool {
+    $key = hash('sha256', $scope . ':' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
     $file = HH_DATA . '/auth-attempts.php';
     $handle = fopen($file, 'c+');
     if (!$handle) throw new RuntimeException('No se pudo comprobar el acceso.');
