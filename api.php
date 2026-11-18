@@ -62,7 +62,7 @@ function hh_store(PDO $db, ?string $id): never {
                 throw new HttpError(409, 'Este documento ya fue guardado. Abrilo desde el historial para editarlo.');
             }
         }
-        $duplicate = hh_query($db,'SELECT id,deleted_at FROM hh_documents WHERE type=? AND number_key=? AND id<>?',[$data['type'],$validated['key'],$id])->fetch();
+        $duplicate = hh_query($db,'SELECT id,deleted_at FROM hh_documents WHERE type=? AND reserved_number_key=? AND id<>?',[$data['type'],$validated['key'],$id])->fetch();
         if ($duplicate) throw new HttpError(409, 'Ya existe ' . ($data['type']==='invoice'?'una factura':'un presupuesto') . ' con ese número' . ($duplicate['deleted_at']!==null?' en la papelera.':'.'), ['suggestions'=>hh_suggestions($db,(int)substr($data['date'],0,4))]);
         $bytes=hh_pdf_bytes($body['pdfBase64']??$body['pdf']??null);
         $pdfKey = bin2hex(random_bytes(32)) . '.pdf.php';
@@ -167,7 +167,13 @@ try {
             $row=hh_find($db,$id,$now,true);
             if($row['deleted_at']!==null){hh_query($db,'UPDATE hh_documents SET deleted_at=NULL,expires_at=NULL,updated_at=? WHERE id=?',[$now,$id]);$row=hh_find($db,$id,$now);}
             $db->commit();
-        } catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
+        } catch(Throwable $e){
+            if($db->inTransaction())$db->rollBack();
+            if ($e instanceof PDOException && $e->getCode() === '23000') {
+                throw new HttpError(409, 'El número ' . $row['number'] . ' ya está en uso. El presupuesto sigue en la papelera.');
+            }
+            throw $e;
+        }
         hh_json(['document'=>hh_metadata($row)]);
     }
     throw new HttpError(405,'Esta acción no está disponible.');

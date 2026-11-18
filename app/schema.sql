@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS hh_documents (
   updated_at BIGINT NOT NULL,
   deleted_at BIGINT NULL,
   expires_at BIGINT NULL,
-  UNIQUE KEY hh_number_unique (type,number_key),
+  reserved_number_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin
+    GENERATED ALWAYS AS (CASE WHEN type='quote' AND deleted_at IS NOT NULL THEN NULL ELSE RTRIM(number_key) END) STORED,
+  UNIQUE KEY hh_number_unique (type,reserved_number_key),
   KEY hh_archive (deleted_at,updated_at),
   KEY hh_expiry (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

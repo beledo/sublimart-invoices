@@ -171,7 +171,7 @@ function hh_migrate(PDO $db, ?string $brandId=null): void {
     hh_prepare_brand_storage($brand['id']);
     $identity=$db->query('SELECT @@hostname AS host,@@port AS port,DATABASE() AS name')->fetch();
     $databaseKey=substr(hash('sha256',json_encode($identity,JSON_THROW_ON_ERROR)),0,24);
-    $marker=hh_brand_data($brand['id']).'/schema-v1-'.$databaseKey.'.php';
+    $marker=hh_brand_data($brand['id']).'/schema-v2-'.$databaseKey.'.php';
     if (is_file($marker)) return;
     $lock=fopen(hh_brand_data($brand['id']).'/schema-lock.php','c+');
     if (!$lock || !flock($lock,LOCK_EX)) throw new RuntimeException('No se pudo bloquear la actualización de la base.');
@@ -180,6 +180,17 @@ function hh_migrate(PDO $db, ?string $brandId=null): void {
         $schema=file_get_contents(__DIR__.'/schema.sql');
         if ($schema===false) throw new RuntimeException('No se pudo cargar el esquema.');
         foreach (explode(';',$schema) as $sql) if(trim($sql)!=='') $db->exec($sql);
+        $hasNumberReservation = hh_query($db,
+            'SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=? AND column_name=?',
+            ['hh_documents', 'reserved_number_key']
+        )->fetchColumn();
+        if (!$hasNumberReservation) {
+            $db->exec("ALTER TABLE hh_documents
+                ADD COLUMN reserved_number_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin
+                    GENERATED ALWAYS AS (CASE WHEN type='quote' AND deleted_at IS NOT NULL THEN NULL ELSE RTRIM(number_key) END) STORED,
+                DROP INDEX hh_number_unique,
+                ADD UNIQUE INDEX hh_number_unique (type, reserved_number_key)");
+        }
         $company=['name'=>$brand['name'],'nif'=>'','address'=>'','postcode'=>'','city'=>'','email'=>'','phone'=>'','iban'=>'','brand'=>$brand['id']];
         hh_query($db,'INSERT IGNORE INTO hh_company (id,data,updated_at) VALUES (?,?,?)',['company',json_encode($company,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),hh_now()]);
         if (file_put_contents($marker,"<?php exit;\n",LOCK_EX)===false) throw new RuntimeException('No se pudo guardar la versión de la base.');

@@ -64,7 +64,8 @@ for brand,name in zip(brands,brand_names):
  original_logo=Path(__file__).resolve().parents[1]/'assets'/'logos'/(brand+'.png')
  assert api(brand,'pdf-logo',accept='image/webp,image/*,*/*;q=0.8')==original_logo.read_bytes()
  boot=api(brand,'bootstrap');assert boot['company']['name']==name;tokens[brand]=boot['csrfToken']
- assert 'Cambiar contraseña' in request('?brand='+brand)
+ editor=request('?brand='+brand)
+ assert 'Cambiar contraseña' in editor and 'Unidad de las partidas' not in editor
  client={'name':'Cliente '+name,'nif':'30.123.456','address':'','postcode':'','city':'','email':'','phone':''}
  cid=str(uuid.uuid4());client_ids[brand]=cid
  result=api(brand,'clients',data={'id':cid,'client':client},method='POST',csrf=tokens[brand],expected=201)
@@ -76,11 +77,13 @@ for brand,name in zip(brands,brand_names):
  api(brand,'company',data={'company':boot['company']},method='PUT',expected=403)
  wrong={**boot['company'],'brand':next(x for x in brands if x!=brand)}
  api(brand,'company',data={'company':wrong},method='PUT',csrf=tokens[brand],expected=400)
- data={'brand':brand,'type':'quote','number':'001-26','date':'2026-11-17','tax':21,'unit':'Cantidad','company':boot['company'],'client':client,'items':[{'description':'Camiseta personalizada','quantity':'12','price':'11.50'},{'description':'Taza con diseño a color','quantity':'6','price':'6.90'}],'paymentMethod':'','paymentTerms':'','notes':'','clause':'','validity':'30'}
+ data={'brand':brand,'type':'quote','number':'001-26','date':'2026-11-17','tax':21,'company':boot['company'],'client':client,'items':[{'description':'Camiseta personalizada','quantity':'12','price':'11.50'},{'description':'Taza con diseño a color','quantity':'6','price':'6.90'}],'paymentMethod':'','paymentTerms':'','notes':'','clause':'','validity':'30'}
+ if brand=='argento':data['unit']='Horas'
  pdf=base64.b64encode((Path(config['pdf_directory'])/(brand+'.pdf')).read_bytes()).decode()
  did=str(uuid.uuid4());document_ids[brand]=did
  saved=api(brand,'documents',data={'id':did,'data':data,'pdfBase64':pdf},method='POST',csrf=tokens[brand],expected=201)
  assert saved['document']['total']==21707 and saved['suggestions']['quote']['next']=='002-26'
+ assert api(brand,'documents/'+did)['data']['unit']=='Cantidad'
  api(brand,'documents/'+did,data={'revision':0,'data':data,'pdfBase64':pdf},method='PUT',csrf=tokens[brand],expected=409)
  assert api(brand,'documents/'+did+'/pdf').startswith(b'%PDF-')
 assert len(set(tokens.values()))==3
@@ -94,12 +97,49 @@ for brand in brands:
   api(brand,'documents/'+document_ids[other]+'/pdf',expected=404)
   api(brand,'documents/'+document_ids[other],method='DELETE',csrf=tokens[brand],expected=404)
  assert api(brand,'documents')['total']==1
- # Trash and restore one brand, then confirm the others remain active.
-api(brands[0],'documents/'+document_ids[brands[0]],method='DELETE',csrf=tokens[brands[0]])
-assert api(brands[0],'documents')['total']==0
-assert all(api(brand,'documents')['total']==1 for brand in brands[1:])
-api(brands[0],'documents/'+document_ids[brands[0]]+'/restore',method='POST',csrf=tokens[brands[0]])
+# Release the quote number while keeping the document recoverable.
 first=brands[0]
+original_id=document_ids[first]
+original_path='documents/'+original_id
+first_token=tokens[first]
+original_data=api(first,original_path)['data']
+original_pdf=base64.b64encode((Path(config['pdf_directory'])/(first+'.pdf')).read_bytes()).decode()
+def next_number(kind='quote'):
+ return api(first,'bootstrap?year=2026')['suggestions'][kind]['next']
+def create_document(data,expected=201):
+ doc_id=str(uuid.uuid4())
+ api(first,'documents',data={'id':doc_id,'data':data,'pdfBase64':original_pdf},method='POST',csrf=first_token,expected=expected)
+ return 'documents/'+doc_id
+def trash(path):
+ api(first,path,method='DELETE',csrf=first_token)
+def restore(path,expected=200):
+ return api(first,path+'/restore',method='POST',csrf=first_token,expected=expected)
+trash(original_path)
+assert next_number()=='001-26' and api(first,'documents')['total']==0
+assert all(api(brand,'documents')['total']==1 for brand in brands[1:])
+restore(original_path)
+assert next_number()=='002-26'
+trash(original_path)
+reused_path=create_document({**original_data,'number':'1-2026'})
+assert 'ya está en uso' in restore(original_path,expected=409)['error']
+assert api(first,original_path)['document']['deletedAt'] is not None
+trash(reused_path)
+restore(original_path)
+next_path=create_document({**original_data,'number':'002-26'})
+highest_path=create_document({**original_data,'number':'003-26'})
+trash(next_path)
+assert next_number()=='004-26'
+trash(highest_path)
+assert next_number()=='002-26'
+# Invoice numbers stay reserved in the trash.
+invoice_data={**original_data,'type':'invoice'}
+for key in ['company','client']:
+ invoice_data[key]={**invoice_data[key],'nif':'12345678Z','address':'Calle Mayor 1','postcode':'07001','city':'Palma'}
+invoice_path=create_document(invoice_data)
+trash(invoice_path)
+assert next_number('invoice')=='002-26'
+create_document(invoice_data,expected=409)
+restore(invoice_path)
 change_path='cuenta.php?brand='+first
 other_browser=cookies.copy()
 replacement='NewPass7'
@@ -118,4 +158,4 @@ api(first,'documents/'+document_ids[first]+'/pdf',expected=401)
 for brand in brands[1:]:api(brand,'bootstrap')
 login(first,config['password'],expected=401)
 login(first,replacement)
-print('PASS: instalación, accesos y contraseñas por marca, cierre de sesión, tres BD, clientes, documentos, PDF, papelera y restauración.')
+print('PASS: instalación, accesos, tres BD, clientes, documentos, PDF, papelera y numeración de presupuestos y facturas.')

@@ -26,6 +26,7 @@
   let type = 'quote';
   let editingId = null, editingRevision = null, requestId = uuid(), saving = false, savedFingerprint = null, savedNumber = null;
   let suggestions = {}, savedCompany, companyTouched = false, storeReady = false, bootstrapVersion = 0;
+  let numberIsAutomatic = true;
   let view = 'editor', filter = '', archiveRows = [], archiveNext = null, archiveVersion = 0, loadingRecord = false;
   const clientFields = ['name','nif','address','postcode','city','email','phone'];
   let documentSource=null, clientResolved=null, clientLookupVersion=0, clientLookupController=null, csrfToken=sessionKey, uploadPdf=false;
@@ -35,8 +36,6 @@
   const clauseDefault = '';
   const termsByType = { quote:'', invoice:'' };
   const notesByType = { quote:'', invoice:'' };
-  const unitsByType = { quote:'Cantidad', invoice:'Cantidad' };
-  $('unit').value = unitsByType.quote;
   $('date').value = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   $('payment-terms').value = termsByType.quote;
   $('notes').value = notesByType.quote;
@@ -48,7 +47,7 @@
   savedCompany = readCompany();
   function readData() {
     return {
-      brand:brandId, type, number: value('number'), date: value('date'), tax: Number(value('tax')), unit: value('unit'),
+      brand:brandId, type, number: value('number'), date: value('date'), tax: Number(value('tax')), unit: 'Cantidad',
       company: readCompany(),
       client: Object.fromEntries(clientFields.map(key=>[key,value('client-'+key)])),
       items: rows.map(row => ({ description: row.description.trim(), quantity: row.quantity, price: row.price })),
@@ -139,18 +138,18 @@
   }
   function setType(newType) {
     if (!['quote', 'invoice'].includes(newType) || newType === type) return;
-    termsByType[type] = $('payment-terms').value; notesByType[type] = $('notes').value; unitsByType[type] = $('unit').value;
+    termsByType[type] = $('payment-terms').value; notesByType[type] = $('notes').value;
     if (editingId && !loadingRecord) { editingId=null; editingRevision=null; requestId=uuid(); savedFingerprint=null; savedNumber=null; }
     type = newType;
     form.querySelector('input[name="documentType"][value="' + type + '"]').checked = true;
-    $('payment-terms').value = termsByType[type]; $('notes').value = notesByType[type]; $('unit').value = unitsByType[type];
+    $('payment-terms').value = termsByType[type]; $('notes').value = notesByType[type];
     closePdf();
     const invoice = type === 'invoice';
     $('quote-settings').hidden = invoice; $('clause-label').hidden = invoice;
     $('client-optional').textContent = invoice ? 'Obligatorio en factura' : 'Opcional en presupuesto';
     ['company-nif','company-address','company-postcode','company-city','client-name', 'client-nif', 'client-address', 'client-postcode', 'client-city'].forEach(id => { $(id).required = invoice; });
     $('number').placeholder = suggestions[type]?.next || (invoice ? 'Ej. 005-26' : 'Ej. 013-26');
-    if (!loadingRecord && !editingId && suggestions[type]) $('number').value=suggestions[type].next;
+    if (!loadingRecord && !editingId) useNumberSuggestion();
     clearError(); update(); updateSaveLabels();
   }
   function validate({exporting=false}={}) {
@@ -252,6 +251,7 @@
   $('save-top').addEventListener('click', () => void saveDocument());
   form.addEventListener('input', event => {
     clearError();closePdf();
+    if (event.target.id === 'number') numberIsAutomatic = false;
     if (event.target.id?.startsWith('company-')) companyTouched=true;
     if(event.target.id?.startsWith('client-')) {
       const pending=!!clientLookupController;
@@ -302,8 +302,9 @@
   function connectionError(message) {$('connection-message').textContent=message;$('connection-error').hidden=false;}
   async function loadBootstrap(applyCompany=false) {
     const version=++bootstrapVersion;
+    const requestedYear = year();
     try {
-      const result=await api('/api/bootstrap?year='+year());
+      const result=await api('/api/bootstrap?year='+requestedYear);
       if(version!==bootstrapVersion)return;
       storeReady=true; suggestions=result.suggestions;
       csrfToken=result.csrfToken||csrfToken;uploadPdf=!!result.uploadPdf;
@@ -311,14 +312,24 @@
       if(applyCompany&&!companyTouched) {savedCompany=result.company;setCompany(savedCompany);}
       else if(applyCompany) savedCompany=result.company;
       if(applyCompany&&!draftRestored){draftRestored=true;restoreDraft();}
-      if(!value('number')&&!editingId&&suggestions[type])$('number').value=suggestions[type].next;
+      if (year() !== requestedYear) return loadBootstrap();
+      if (!editingId && (!value('number') || (type === 'quote' && numberIsAutomatic))) useNumberSuggestion();
       $('connection-error').hidden=true;update();renderSequenceCards();
     }catch(error){connectionError(error.message);}
+  }
+  function useNumberSuggestion() {
+    const suggestion = suggestions[type];
+    if (!suggestion) return;
+    if (value('number') !== suggestion.next) closePdf();
+    $('number').value = suggestion.next;
+    numberIsAutomatic = true;
   }
   function updateNumberGuidance() {
     const suggestion=suggestions[type];
     if(!suggestion)return;
-    $('number-guidance').textContent=(suggestion.last?'Último guardado: '+suggestion.last+' · ':'Sin documentos guardados en esta serie · ')+'Siguiente: '+suggestion.next;
+    const lastLabel = type === 'quote' ? 'Último activo: ' : 'Último guardado: ';
+    const emptyLabel = type === 'quote' ? 'Sin presupuestos activos en esta serie · ' : 'Sin documentos guardados en esta serie · ';
+    $('number-guidance').textContent=(suggestion.last?lastLabel+suggestion.last+' · ':emptyLabel)+'Siguiente: '+suggestion.next;
     $('use-suggestion').hidden=!!editingId||value('number')===suggestion.next;
   }
   function updateSaveLabels() {
@@ -411,7 +422,7 @@
     if(saving){toast('Esperá a que termine el guardado.');return;}
     closePdf();documentSource=null;clientResolved=null;resetClientLookup('Ingresá el DNI, NIF, CIF o NIE y pulsá Buscar cliente.');editingId=null;editingRevision=null;requestId=uuid();savedFingerprint=null;savedNumber=null;loadingRecord=true;setType(kind);loadingRecord=false;
     $('date').value=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-    $('number').value='';$('tax').value='21';$('unit').value='Cantidad';
+    $('number').value='';numberIsAutomatic=true;$('tax').value='21';
     clientFields.forEach(key=>{$('client-'+key).value='';});
     $('payment-method').value='';$('payment-terms').value='';
     $('notes').value='';
@@ -427,7 +438,7 @@
     closePdf();documentSource=data.source||null;clientResolved=null;resetClientLookup();
     loadingRecord=true;setType(data.type);loadingRecord=false;
     editingId=result.document.id;editingRevision=result.document.revision;
-    $('number').value=data.number;$('date').value=data.date;$('tax').value=String(data.tax);$('unit').value=data.unit;
+    $('number').value=data.number;numberIsAutomatic=false;$('date').value=data.date;$('tax').value=String(data.tax);
     clientFields.forEach(key=>{$('client-'+key).value=data.client[key]||'';});$('client-lookup-status').textContent='Datos del cliente conservados en este documento.';
     setCompany(data.company);$('company-iban').value=data.company.iban??data.iban??'';
     $('payment-method').value=data.paymentMethod;$('payment-terms').value=data.paymentTerms;$('notes').value=data.notes;$('clause').value=data.clause;$('validity').value=data.validity;
@@ -435,9 +446,10 @@
     savedFingerprint=JSON.stringify(readData());savedNumber=data.number;
     if(mode!=='edit'){
       documentSource={id:result.document.id,type:data.type,number:data.number,action:mode==='conversion'?'conversion':'duplicate'};
-      if(mode==='conversion'){loadingRecord=true;setType('invoice');loadingRecord=false;$('unit').value=data.unit;$('payment-terms').value='';$('notes').value='';}
+      if(mode==='conversion'){loadingRecord=true;setType('invoice');loadingRecord=false;$('payment-terms').value='';$('notes').value='';}
       editingId=null;editingRevision=null;requestId=uuid();savedFingerprint=null;savedNumber=null;
       $('date').value=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());$('number').value='';
+      numberIsAutomatic = true;
       await loadBootstrap();
       if(!value('number'))throw new Error('No se pudo obtener el nuevo número. Volvé a intentarlo.');
       toast(mode==='conversion'?'Factura preparada. Revisá los datos y guardala; el presupuesto se conserva.':'Copia preparada con un número nuevo. Revisala y guardala.');
@@ -461,7 +473,7 @@
   }
   document.querySelectorAll('[data-filter]').forEach(button=>button.addEventListener('click',()=>{filter=button.dataset.filter;document.querySelectorAll('[data-filter]').forEach(item=>item.classList.toggle('active',item===button));void loadArchive();}));
   $('new-document').addEventListener('click',()=>resetDocument());$('leave-edit').addEventListener('click',()=>resetDocument());
-  $('use-suggestion').addEventListener('click',()=>{if(suggestions[type]){$('number').value=suggestions[type].next;update();}});
+  $('use-suggestion').addEventListener('click',()=>{useNumberSuggestion();update();});
   $('save-company').addEventListener('click',()=>void saveCompany());
   $('retry-connection').addEventListener('click',()=>{void loadBootstrap(!companyTouched);if(view!=='editor')void loadArchive();});
   $('refresh-archive').addEventListener('click',()=>{void loadBootstrap();void loadArchive();});$('load-more').addEventListener('click',()=>void loadArchive(true));
@@ -474,8 +486,16 @@
       if(action==='edit')await openDocument(id);
       else if(action==='duplicate'||action==='conversion')await openDocument(id,action);
       else {
-        await api('/api/documents/'+id+(action==='restore'?'/restore':''),{method:action==='restore'?'POST':'DELETE'});
-        if(action==='trash'&&editingId===id){editingId=null;editingRevision=null;requestId=uuid();updateSaveLabels();}
+        const result = await api('/api/documents/'+id+(action==='restore'?'/restore':''),{method:action==='restore'?'POST':'DELETE'});
+        if (action === 'trash' && editingId === id) {
+          numberIsAutomatic = type === 'quote' && value('number') === result.document.number;
+          editingId = null;
+          editingRevision = null;
+          requestId = uuid();
+          savedFingerprint = null;
+          savedNumber = null;
+          updateSaveLabels();
+        }
         toast(action==='restore'?'Documento recuperado.':'Documento enviado a la papelera. Podés recuperarlo durante 30 días.');
         await loadBootstrap();await loadArchive();
       }
@@ -632,7 +652,10 @@
           engine.calculate(input.items, input.tax ?? Number(value('tax')));
         }
         if (input.type) setType(input.type);
-        if (input.number !== undefined) $('number').value = input.number;
+        if (input.number !== undefined) {
+          $('number').value = input.number;
+          numberIsAutomatic = false;
+        }
         if (input.date !== undefined) $('date').value = input.date;
         if (input.tax !== undefined) $('tax').value = String(input.tax);
         if (input.client) Object.entries(input.client).forEach(([key,val]) => { $('client-' + key).value = val; });
@@ -648,7 +671,7 @@
   }
   function persistDraft() {
     if(!storeReady||loadingRecord)return;
-    try{sessionStorage.setItem(draftKey,JSON.stringify({data:readData(),editingId,editingRevision,requestId,savedFingerprint,savedNumber,time:Date.now()}));}catch(_){}
+    try{sessionStorage.setItem(draftKey,JSON.stringify({data:readData(),numberIsAutomatic,editingId,editingRevision,requestId,savedFingerprint,savedNumber,time:Date.now()}));}catch(_){}
   }
   function restoreDraft() {
     try{
@@ -656,7 +679,8 @@
       const draft=JSON.parse(raw),data=draft.data;
       if(!data||data.brand!==brandId||Date.now()-draft.time>8*3600000||!['quote','invoice'].includes(data.type)||!Array.isArray(data.items)||!data.items.length||data.items.length>200){sessionStorage.removeItem(draftKey);return;}
       loadingRecord=true;setType(data.type);
-      for(const key of ['number','date','tax','unit','notes','clause','validity'])$(key).value=data[key]??'';
+      for(const key of ['number','date','tax','notes','clause','validity'])$(key).value=data[key]??'';
+      numberIsAutomatic = draft.numberIsAutomatic === true;
       clientFields.forEach(key=>{$('client-'+key).value=data.client?.[key]||'';});
       setCompany(data.company);companyTouched=true;
       $('payment-method').value=data.paymentMethod||'';$('payment-terms').value=data.paymentTerms||'';

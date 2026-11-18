@@ -70,7 +70,6 @@ function hh_validate(mixed $input): array {
     if (!$parsed || $parsed->format('Y-m-d') !== $date) throw new HttpError(400, 'La fecha de emisión no es válida.');
     $rate = $input['tax'] ?? null;
     if (!in_array($rate, [0,4,10,21], true)) throw new HttpError(400, 'Elegí un tipo de IVA válido.');
-    if (!in_array($input['unit'] ?? '', ['Cantidad','Metros²','Horas','Unidades'], true)) throw new HttpError(400, 'Elegí una unidad válida.');
     if(isset($input['brand'])&&$input['brand']!==hh_brand()['id'])throw new HttpError(400,'El documento pertenece a otra marca.');
     $company = hh_company($input['company'] ?? null,$input['type']==='invoice');
     $client = hh_client($input['client']??[],$input['type']==='invoice',$input['type']==='invoice');
@@ -83,7 +82,7 @@ function hh_validate(mixed $input): array {
     $amounts = hh_amounts($items, $rate);
     $validity = (string) ($input['validity'] ?? '');
     if (!in_array($validity, ['','15','30','60','90'], true)) throw new HttpError(400, 'Elegí una validez válida.');
-    $data = ['brand'=>hh_brand()['id'],'type'=>$input['type'],'number'=>$number,'date'=>$date,'tax'=>$rate,'unit'=>$input['unit'],'company'=>$company,'client'=>$client,'items'=>$items,
+    $data = ['brand'=>hh_brand()['id'],'type'=>$input['type'],'number'=>$number,'date'=>$date,'tax'=>$rate,'unit'=>'Cantidad','company'=>$company,'client'=>$client,'items'=>$items,
         'paymentMethod'=>hh_string($input['paymentMethod'] ?? '',200,'forma de pago'),'paymentTerms'=>hh_string($input['paymentTerms'] ?? '',2000,'condiciones de pago'),
         'notes'=>hh_string($input['notes'] ?? '',4000,'observaciones'),'clause'=>hh_string($input['clause'] ?? '',6000,'cláusula'),'validity'=>$validity,'iban'=>$company['iban']];
     if (isset($input['source'])) {
@@ -106,10 +105,31 @@ function hh_number_key(string $number): string {
     $normal = $series ? json_encode([$series['prefix'],$series['highest'],$series['year']]) : (function_exists('mb_strtoupper') ? mb_strtoupper(trim($number),'UTF-8') : strtoupper(trim($number)));
     return hash('sha256', $normal);
 }
+function hh_last_active_quote(PDO $db, string $seriesId, int $year): ?array {
+    $rows = hh_query($db,
+        "SELECT number FROM hh_documents WHERE type='quote' AND deleted_at IS NULL AND (number LIKE ? OR number LIKE ?)",
+        ['%-' . $year, '%-' . substr((string)$year, -2)]
+    );
+    $last = null;
+    foreach ($rows as $row) {
+        $series = hh_series('quote', $row['number']);
+        if ($series !== null && $series['id'] === $seriesId && ($last === null || $series['highest'] > $last['highest'])) {
+            $last = $series;
+        }
+    }
+    return $last;
+}
 function hh_suggestions(PDO $db, int $year): array {
     $answer = [];
     foreach (['quote','invoice'] as $type) {
         $row = hh_query($db, 'SELECT * FROM hh_sequences WHERE type=? AND year=? ORDER BY updated_at DESC, id DESC LIMIT 1', [$type,$year])->fetch();
+        if ($row && $type === 'quote') {
+            $last = hh_last_active_quote($db, $row['id'], $year);
+            $row['highest'] = $last['highest'] ?? 0;
+            $row['last_number'] = $last['last'] ?? null;
+            $row['padding'] = $last['padding'] ?? $row['padding'];
+            $row['suffix'] = $last['suffix'] ?? $row['suffix'];
+        }
         $answer[$type] = $row ? ['next'=>$row['prefix'].str_pad((string)((int)$row['highest']+1),(int)$row['padding'],'0',STR_PAD_LEFT).'-'.$row['suffix'],'last'=>$row['last_number'],'year'=>$year] : ['next'=>'001-'.substr((string)$year,-2),'last'=>null,'year'=>$year];
     }
     return $answer;

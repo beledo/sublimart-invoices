@@ -14,7 +14,7 @@
   <script src="assets/pdf-lib.min.js" defer></script>
   <script src="assets/fontkit.min.js" defer></script>
   <script src="assets/document.js" defer></script>
-  <script src="assets/app.js?v=4" defer></script>
+  <script src="assets/app.js?v=5" defer></script>
 </head>
 <body class="brand-{{BRAND_ID}}">
   <div class="app-header">
@@ -53,7 +53,28 @@
       <form id="document-form" novalidate>
         <div class="editing-status" id="editing-status" hidden><span id="editing-status-text"></span><div class="document-tools"><button type="button" id="duplicate-document">Duplicar</button><button type="button" id="convert-document">Convertir en factura</button><button type="button" id="leave-edit">Crear otro</button></div></div>
         <p class="source-notice" id="document-source" hidden></p><fieldset class="type-switch"><legend class="sr-only">Tipo de documento</legend><label><input type="radio" name="documentType" value="quote" checked><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7m-7 4h5"/></svg>Presupuesto</span></label><label><input type="radio" name="documentType" value="invoice"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6m-6 4h4"/></svg>Factura</span></label></fieldset>
-        <section class="form-section"><div class="section-title"><span class="step">01</span><h2>Documento</h2></div><div class="grid-two"><label>Número<input id="number" name="number" maxlength="40" placeholder="Cargando sugerencia…" required autocomplete="off"></label><label>Fecha de emisión<input id="date" name="date" type="date" required></label></div><div class="number-guidance"><span id="number-guidance">Consultando el último número guardado…</span><button type="button" id="use-suggestion" hidden>Usar sugerido</button></div><div class="grid-two tax-row"><label>IVA del documento<select id="tax" name="tax"><option value="21">21 %</option><option value="10">10 %</option><option value="4">4 %</option><option value="0">0 % · sin IVA</option></select></label><label>Unidad de las partidas<select id="unit" name="unit"><option value="Cantidad">Cantidad</option><option value="Metros²">Metros²</option><option value="Horas">Horas</option><option value="Unidades">Unidades</option></select></label></div><p class="field-hint">Los precios se introducen sin IVA.</p></section>
+        <section class="form-section">
+          <div class="section-title"><span class="step">01</span><h2>Documento</h2></div>
+          <div class="grid-two">
+            <label>Número<input id="number" name="number" maxlength="40" placeholder="Cargando sugerencia…" required autocomplete="off"></label>
+            <label>Fecha de emisión<input id="date" name="date" type="date" required></label>
+          </div>
+          <div class="number-guidance">
+            <span id="number-guidance">Consultando el último número guardado…</span>
+            <button type="button" id="use-suggestion" hidden>Usar sugerido</button>
+          </div>
+          <div class="tax-row">
+            <label>IVA del documento
+              <select id="tax" name="tax">
+                <option value="21">21 %</option>
+                <option value="10">10 %</option>
+                <option value="4">4 %</option>
+                <option value="0">0 % · sin IVA</option>
+              </select>
+            </label>
+          </div>
+          <p class="field-hint">Los precios se introducen sin IVA.</p>
+        </section>
         <section class="form-section"><div class="section-title"><span class="step">02</span><h2>Cliente</h2><span class="optional" id="client-optional">Opcional en presupuesto</span></div><div class="client-search-box"><label>Buscar cliente de {{BRAND_NAME}}<input type="search" id="client-search" maxlength="150" autocomplete="off" placeholder="Escribí su DNI o nombre"></label><ul id="client-search-results" class="client-search-results" aria-label="Clientes encontrados" hidden></ul></div><div class="grid-two"><label>Nombre o razón social<input id="client-name" name="clientName" maxlength="150" placeholder="Nombre del cliente" autocomplete="name"></label><label>DNI / NIF / CIF / NIE<input id="client-nif" name="clientNif" maxlength="30" placeholder="Escribí el DNI, NIF, CIF o NIE" autocomplete="off"></label></div><div class="client-lookup-actions"><button type="button" class="button secondary" id="lookup-client">Buscar cliente</button><p class="client-lookup-status" id="client-lookup-status" role="status">Buscá por DNI o nombre, o completá los datos de un cliente nuevo.</p></div><label>Domicilio<input id="client-address" name="clientAddress" maxlength="220" placeholder="Calle, número, piso…" autocomplete="street-address"></label><div class="grid-two"><label>Código postal<input id="client-postcode" name="clientPostcode" maxlength="20" placeholder="07000" autocomplete="postal-code"></label><label>Localidad<input id="client-city" name="clientCity" maxlength="100" placeholder="Palma" autocomplete="address-level2"></label></div><div class="grid-two client-contact"><label>Correo electrónico<input id="client-email" name="clientEmail" type="email" maxlength="100" autocomplete="email" placeholder="cliente@correo.com"></label><label>Teléfono<input id="client-phone" name="clientPhone" type="tel" maxlength="50" autocomplete="tel" placeholder="Teléfono del cliente"></label></div><button type="button" class="button secondary" id="save-client-from-document">Guardar cliente</button></section>
         <section class="form-section items-section"><div class="section-title"><span class="step">03</span><h2>Productos y servicios</h2></div><p class="item-order-hint">Usá las flechas o elegí la posición para ordenar las partidas.</p><p id="item-order-status" class="sr-only" role="status"></p><div id="items" class="items-list"></div><button type="button" id="add-item" class="add-item"><span aria-hidden="true">+</span> Añadir producto</button><div class="editor-totals" aria-live="polite"><div><span>Base imponible</span><strong id="subtotal">0,00 €</strong></div><div><span id="vat-label">IVA (21 %)</span><strong id="vat">0,00 €</strong></div><div class="grand-total"><span>Total <small>IVA incluido</small></span><strong id="total">0,00 €</strong></div></div></section>
         <section class="form-section"><div class="section-title"><span class="step">04</span><h2>Pago y condiciones</h2></div><label>Forma de pago<input id="payment-method" name="paymentMethod" maxlength="200" value="" placeholder="Transferencia, efectivo…"></label><label>Condiciones de pago<textarea id="payment-terms" name="paymentTerms" rows="2" maxlength="2000"></textarea></label><div id="quote-settings"><label>Validez del presupuesto<select id="validity" name="validity"><option value="15">15 días</option><option value="30" selected>30 días</option><option value="60">60 días</option><option value="90">90 días</option><option value="">Sin indicar</option></select></label></div><label>Observaciones<textarea id="notes" name="notes" rows="3" maxlength="4000" placeholder="Información adicional para el cliente"></textarea></label><label id="clause-label">Condiciones adicionales (opcional)<textarea id="clause" name="clause" rows="2" maxlength="6000"></textarea></label></section>
